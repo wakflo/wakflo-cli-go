@@ -1,0 +1,11 @@
+golang-cli-template
+vendor/
+coverage.out
+/dist
+.envrc
+manpages/
+dist/
+
+# IDE
+.vscode
+.idea
