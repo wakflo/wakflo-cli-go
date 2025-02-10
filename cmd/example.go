@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/wakflo/wakflo-cli/internal/convert"
+	"github.com/wakflo/wakflo-cli/pkg/example"
 
-	"github.com/FalcoSuessgott/golang-cli-template/internal/convert"
-	"github.com/FalcoSuessgott/golang-cli-template/pkg/example"
 	"github.com/spf13/cobra"
 )
 

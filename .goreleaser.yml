@@ -9,7 +9,7 @@ before:
 
 builds:
   -
-    binary: golang-cli-template
+    binary: wakflo-cli
     ldflags: -s -w -X main.version={{ .Version }}
     goos:
       - linux
@@ -21,7 +21,7 @@ builds:
 archives:
   -
     builds:
-      - golang-cli-template
+      - wakflo-cli
     format_overrides:
       - goos: windows
         format: zip
@@ -32,10 +32,10 @@ archives:
 
 nfpms:
   - builds:
-      - golang-cli-template
-    vendor: FalcoSuessgott
-    homepage:  https://github.com/FalcoSuessgott/golang-cli-template
-    maintainer: "Tom Morelly <tommorelly@gmail.com>"
+      - wakflo-cli
+    vendor: wakflo
+    homepage:  https://github.com/wakflo/wakflo-cli
+    maintainer: "Rex Raphael <rex@wakflo.com>"
     description: "A general purpose golang CLI template for Github and Gitlab"
     license: GPL-3.0
     formats:
@@ -44,20 +44,20 @@ nfpms:
       - rpm
     bindir: /usr/bin
     contents:
-      - src: ./manpages/golang-cli-template.1.gz
-        dst: /usr/share/man/man1/golang-cli-template.1.gz
+      - src: ./manpages/wakflo-cli.1.gz
+        dst: /usr/share/man/man1/wakflo-cli.1.gz
         file_info:
           mode: 0644
-      - src: ./completions/golang-cli-template.bash
-        dst: /usr/share/bash-completion/completions/golang-cli-template
+      - src: ./completions/wakflo-cli.bash
+        dst: /usr/share/bash-completion/completions/wakflo-cli
         file_info:
           mode: 0644
-      - src: ./completions/golang-cli-template.fish
-        dst: /usr/share/fish/vendor_completions.d/golang-cli-template.fish
+      - src: ./completions/wakflo-cli.fish
+        dst: /usr/share/fish/vendor_completions.d/wakflo-cli.fish
         file_info:
           mode: 0644
-      - src: ./completions/golang-cli-template.zsh
-        dst:  /usr/share/zsh/vendor-completions/_golang-cli-template
+      - src: ./completions/wakflo-cli.zsh
+        dst:  /usr/share/zsh/vendor-completions/_wakflo-cli
         file_info:
           mode: 0644
 
@@ -69,7 +69,7 @@ dockers:
   use: buildx
   build_flag_templates:
   - "--pull"
-  - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/FalcoSuessgott/golang-cli-template/master/README.md"
+  - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/FalcoSuessgott/wakflo-cli/master/README.md"
   - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Morelly\",\"email\":\"tommorelly@gmail.com\"}]"
   - "--label=io.artifacthub.package.license=MIT"
   - "--label=org.opencontainers.image.description=A general purpose golang CLI template for Github and Gitlab"
@@ -86,8 +86,8 @@ dockers:
   use: buildx
   build_flag_templates:
   - "--pull"
-  - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/FalcoSuessgott/golang-cli-template/master/README.md"
-  - "--label=io.artifacthub.package.logo-url=https://raw.githubusercontent.com/FalcoSuessgott/golang-cli-template/master/www/static/images/logo.png"
+  - "--label=io.artifacthub.package.readme-url=https://raw.githubusercontent.com/FalcoSuessgott/wakflo-cli/master/README.md"
+  - "--label=io.artifacthub.package.logo-url=https://raw.githubusercontent.com/FalcoSuessgott/wakflo-cli/master/www/static/images/logo.png"
   - "--label=io.artifacthub.package.maintainers=[{\"name\":\"Tom Morelly\",\"email\":\"tommorelly@gmail.com\"}]"
   - "--label=io.artifacthub.package.license=MIT"
   - "--label=org.opencontainers.image.description=A general purpose golang CLI template for Github and Gitlab"

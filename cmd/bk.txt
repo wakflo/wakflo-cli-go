@@ -1,0 +1,208 @@
+package cmd
+
+import (
+	"context"
+	"fmt"
+	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbletea"
+	"github.com/spf13/cobra"
+	"github.com/wakflo/go-sdk/client"
+	"github.com/wakflo/go-sdk/validator"
+)
+
+type item string
+
+func (i item) FilterValue() string { return "" }
+
+var val = validator.NewDefaultValidator()
+
+func newCreateCmd(floClient *client.Client) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Create resources in Wakflo",
+		Long:  "Use this command to create resources such as integrations in Wakflo.",
+	}
+
+	cmd.AddCommand(newCreateIntegrationCmd(floClient))
+
+	return cmd
+}
+
+func newCreateIntegrationCmd(floClient *client.Client) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "integration",
+		Aliases: []string{"i", "int", "integ", "integrations"},
+		Short:   "Create a new integration",
+		Long:    "Use this command to create a new integration in Wakflo.",
+		Run: func(cmd *cobra.Command, args []string) {
+			model := newCreateIntegrationModel(floClient)
+			program := tea.NewProgram(model)
+			if err := program.Start(); err != nil {
+				fmt.Printf("Error: %v\n", err)
+			}
+		},
+	}
+
+	return cmd
+}
+
+// Bubble Tea model for managing integration creation
+type createIntegrationModel struct {
+	client       *client.Client
+	nameInput    textinput.Model
+	description  textarea.Model
+	categoryList list.Model
+	selectedIcon string
+	authorsInput textinput.Model
+
+	phase    int
+	err      error
+	quitting bool
+}
+
+func (m *createIntegrationModel) Init() tea.Cmd {
+	return nil
+}
+
+func newCreateIntegrationModel(client *client.Client) *createIntegrationModel {
+	// Initialize name input
+	nameInput := textinput.New()
+	nameInput.Placeholder = "Enter Name of the integration (required)"
+	nameInput.Focus()
+	nameInput.CharLimit = 50
+	nameInput.Width = 40
+
+	// Initialize description textarea
+	description := textarea.New()
+	description.Placeholder = "Generated description will appear here..."
+	description.SetHeight(5)
+	description.SetWidth(50)
+
+	// Initialize empty list for selecting categories/icons
+	categoryList := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
+
+	// Authors input
+	authorsInput := textinput.New()
+	authorsInput.Placeholder = "Enter Authors of the integration (comma-separated)"
+	authorsInput.Width = 40
+
+	return &createIntegrationModel{
+		client:       client,
+		nameInput:    nameInput,
+		description:  description,
+		categoryList: categoryList,
+		authorsInput: authorsInput,
+		phase:        0,
+	}
+}
+
+// Bubble Tea Model Update
+func (m *createIntegrationModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "q":
+			m.quitting = true
+			return m, tea.Quit
+		case "enter":
+			if m.phase == 0 {
+				m.phase++
+				if err := m.fetchDescription(); err != nil {
+					m.err = err
+					return m, tea.Quit
+				}
+				return m, nil
+			}
+			if m.phase == 1 {
+				m.phase++
+				if err := m.fetchCategories(); err != nil {
+					m.err = err
+					return m, tea.Quit
+				}
+				return m, nil
+			}
+			if m.phase == 2 {
+				m.phase++
+				return m, tea.Quit
+			}
+		}
+	}
+
+	// Handle input and list updates based on the current phase
+	switch m.phase {
+	case 0:
+		var cmd tea.Cmd
+		m.nameInput, cmd = m.nameInput.Update(msg)
+		return m, cmd
+	case 1:
+		var cmd tea.Cmd
+		m.description, cmd = m.description.Update(msg)
+		return m, cmd
+	case 2:
+		var cmd tea.Cmd
+		m.categoryList, cmd = m.categoryList.Update(msg)
+		return m, cmd
+	case 3:
+		var cmd tea.Cmd
+		m.authorsInput, cmd = m.authorsInput.Update(msg)
+		return m, cmd
+	}
+	return m, nil
+}
+
+// View logic for the TUI
+func (m *createIntegrationModel) View() string {
+	if m.quitting {
+		return "Goodbye!"
+	}
+
+	if m.err != nil {
+		return fmt.Sprintf("Error: %v\n", m.err)
+	}
+
+	switch m.phase {
+	case 0:
+		return fmt.Sprintf("Step 1: Name\n\n%s\n\n%s", m.nameInput.View(), "(Press Enter to continue)")
+	case 1:
+		return fmt.Sprintf("Step 2: Description\n\n%s\n\n%s", m.description.View(), "(Press Enter to continue)")
+	case 2:
+		return fmt.Sprintf("Step 3: Categories\n\n%s\n\n%s", m.categoryList.View(), "(Press Enter to choose categories)")
+	case 3:
+		return fmt.Sprintf("Step 4: Authors\n\n%s\n\n%s", m.authorsInput.View(), "(Press Enter to finalize)")
+	}
+	return "Unknown step"
+}
+
+func (m *createIntegrationModel) fetchDescription() error {
+	name := m.nameInput.Value()
+	if name == "" {
+		return fmt.Errorf("name is required")
+	}
+
+	descMessage := fmt.Sprintf("%s integration", name)
+	response, err := m.client.Rest.GenerateDescription(context.Background(), client.RestGenerateDescriptionRequest{
+		Prompt: descMessage,
+		Type:   "integration",
+	})
+	if err != nil {
+		return err
+	}
+	m.description.SetValue(response.Data)
+	return nil
+}
+
+func (m *createIntegrationModel) fetchCategories() error {
+	response, err := m.client.Rest.ListCategories(context.Background(), client.RestListCategoriesRequest{})
+	if err != nil {
+		return err
+	}
+
+	items := make([]list.Item, len(response.Keys))
+	for i, category := range response.Keys {
+		items[i] = item(category)
+	}
+	m.categoryList.SetItems(items)
+	return nil
+}

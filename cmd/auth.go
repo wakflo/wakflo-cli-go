@@ -1,11 +1,12 @@
 package cmd
 
 import (
-	"github.com/FalcoSuessgott/golang-cli-template/internal/auth"
 	"github.com/spf13/cobra"
+	"github.com/wakflo/go-sdk/client"
+	"github.com/wakflo/wakflo-cli/internal/auth"
 )
 
-func newAuthCmd() *cobra.Command {
+func newAuthCmd(floClient *client.Client) *cobra.Command {
 	auth := auth.New()
 
 	cmd := &cobra.Command{

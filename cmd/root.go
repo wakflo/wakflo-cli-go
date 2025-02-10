@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/wakflo/go-sdk/client"
+	"log"
 
 	"github.com/spf13/cobra"
 )
@@ -16,11 +18,16 @@ func newRootCmd(version string) *cobra.Command {
 		},
 	}
 
+	floClient, err := client.New(client.Local)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	cmd.AddCommand(newVersionCmd(version)) // version subcommand
-	cmd.AddCommand(newExampleCmd())        // example subcommand
-	cmd.AddCommand(newAuthCmd())           // auth subcommand
-	cmd.AddCommand(newCreateCmd())         // create subcommand
-	cmd.AddCommand(newAddCmd())            // add subcommand
+	//cmd.AddCommand(newExampleCmd())        // example subcommand
+	cmd.AddCommand(newAuthCmd(floClient))   // auth subcommand
+	cmd.AddCommand(newCreateCmd(floClient)) // create subcommand
+	cmd.AddCommand(newAddCmd(floClient))    // add subcommand
 
 	return cmd
 }

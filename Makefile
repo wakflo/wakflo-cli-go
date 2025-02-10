@@ -1,4 +1,4 @@
-projectname?=wakflo-cli-go
+projectname?=wakflo-cli
 
 default: help
 
