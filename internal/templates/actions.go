@@ -5,16 +5,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/BurntSushi/toml"
 	"github.com/manifoldco/promptui"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"github.com/wakflo/go-sdk/client"
-	"github.com/wakflo/go-sdk/integration"
-	"os"
-	"path/filepath"
-
-	"strings"
+	"github.com/wakflo/go-sdk/sdk"
 )
 
 const integrationFile = "flo.toml"
@@ -32,14 +32,13 @@ type ActionTriggerMetadata struct {
 }
 
 func HandleAddResource(kind string, cmd *cobra.Command, floClient *client.Client) error {
-
 	// Ensure the command is being run from an integration folder
 	data, err := os.ReadFile(integrationFile)
 	if errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("not an integration project: missing '%s' file", integrationFile)
 	}
 
-	var schema integration.IntegrationSchemaModel
+	var schema sdk.IntegrationSchemaModel
 	if err := toml.Unmarshal(data, &schema); err != nil {
 		return fmt.Errorf("failed to parse '%s' file: %w", integrationFile, err)
 	}
@@ -94,7 +93,7 @@ func HandleAddResource(kind string, cmd *cobra.Command, floClient *client.Client
 }
 
 // Collects inputs interactively
-func collectInput(kind string, schema *integration.IntegrationSchemaModel, floClient *client.Client) (*ActionTriggerMetadata, error) {
+func collectInput(kind string, schema *sdk.IntegrationSchemaModel, floClient *client.Client) (*ActionTriggerMetadata, error) {
 	prompt := promptui.Prompt{
 		Label: "Enter Name",
 	}
@@ -150,7 +149,7 @@ func collectInput(kind string, schema *integration.IntegrationSchemaModel, floCl
 
 	meta := &ActionTriggerMetadata{
 		Name:        name,
-		Description: description,
+		Description: strings.Trim(description, `"'`),
 		Type:        selectedType,
 		TypeName:    getSDKTypeName(kind, selectedType),
 		FileName:    formatFileName(name),
@@ -187,9 +186,9 @@ func updateLibFile(filePath string, meta *ActionTriggerMetadata) error {
 	// Define the insertion point based on whether it's an action or trigger
 	var marker string
 	if meta.Kind == "action" {
-		marker = "return []integration.Action{"
+		marker = "return []sdk.Action{"
 	} else {
-		marker = "return []integration.Trigger{"
+		marker = "return []sdk.Trigger{"
 	}
 	insertionPoint := strings.Index(string(codeData), marker)
 	if insertionPoint == -1 {
@@ -213,11 +212,11 @@ func updateDocFile(docFilePath, kind, resourceFolder string) error {
 	// Read the existing doc.go content if it exists
 	content := ""
 	if _, err := os.Stat(docFilePath); err == nil {
-		data, err := os.ReadFile(docFilePath)
+		_, err := os.ReadFile(docFilePath)
 		if err != nil {
 			return fmt.Errorf("failed to read existing doc.go: %w", err)
 		}
-		content = string(data)
+		// content = string(data)
 	}
 
 	// Find all Markdown files in the resource folder
@@ -279,7 +278,7 @@ import (
 	"fmt"
 	"github.com/wakflo/go-sdk/autoform"
 	sdkcore "github.com/wakflo/go-sdk/core"
-	"github.com/wakflo/go-sdk/integration"
+	"github.com/wakflo/go-sdk/sdk"
 )
 
 type {{ .FileName | toCamelCase }}ActionProps struct {
@@ -300,8 +299,8 @@ func (a *{{ .FileName | toPascal }}Action) GetType() sdkcore.ActionType {
 	return {{ .TypeName }}
 }
 
-func (a *{{ .FileName | toPascal }}Action) Documentation() *integration.OperationDocumentation {
-	return &integration.OperationDocumentation{
+func (a *{{ .FileName | toPascal }}Action) Documentation() *sdk.OperationDocumentation {
+	return &sdk.OperationDocumentation{
 		Documentation: &{{ .FileName | toCamelCase }}Docs,
 	}
 }
@@ -320,8 +319,8 @@ func (a *{{ .FileName | toPascal }}Action) Properties() map[string]*sdkcore.Auto
 	}
 }
 
-func (a *{{ .FileName | toPascal }}Action) Perform(context integration.PerformContext) (sdkcore.JSON, error) {
-	input, err := integration.InputToTypeSafely[{{ .FileName | toCamelCase }}ActionProps](context.BaseContext)
+func (a *{{ .FileName | toPascal }}Action) Perform(ctx sdk.PerformContext) (sdkcore.JSON, error) {
+	input, err := sdk.InputToTypeSafely[{{ .FileName | toCamelCase }}ActionProps](ctx.BaseContext)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +334,7 @@ func (a *{{ .FileName | toPascal }}Action) Perform(context integration.PerformCo
 	return out, nil
 }
 
-func (a *{{ .FileName | toPascal }}Action) Auth() *integration.Auth {
+func (a *{{ .FileName | toPascal }}Action) Auth() *sdk.Auth {
 	return nil
 }
 
@@ -349,7 +348,7 @@ func (a *{{ .FileName | toPascal }}Action) Settings() sdkcore.ActionSettings {
 	return sdkcore.ActionSettings{}
 }
 
-func New{{ .FileName | toPascal }}Action() integration.Action {
+func New{{ .FileName | toPascal }}Action() sdk.Action {
 	return &{{ .FileName | toPascal }}Action{}
 }
 `
@@ -361,7 +360,7 @@ import (
 	"fmt"
 	"github.com/wakflo/go-sdk/autoform"
 	sdkcore "github.com/wakflo/go-sdk/core"
-	"github.com/wakflo/go-sdk/integration"
+	"github.com/wakflo/go-sdk/sdk"
 )
 
 type {{ .FileName | toCamelCase }}TriggerProps struct {
@@ -382,8 +381,8 @@ func (t *{{ .FileName | toPascal }}Trigger) GetType() sdkcore.TriggerType {
 	return {{ .TypeName }}
 }
 
-func (t *{{ .FileName | toPascal }}Trigger) Documentation() *integration.OperationDocumentation {
-	return &integration.OperationDocumentation{
+func (t *{{ .FileName | toPascal }}Trigger) Documentation() *sdk.OperationDocumentation {
+	return &sdk.OperationDocumentation{
 		Documentation: &{{ .FileName | toCamelCase }}Docs,
 	}
 }
@@ -403,21 +402,21 @@ func (t *{{ .FileName | toPascal }}Trigger) Properties() map[string]*sdkcore.Aut
 }
 
 // Start initializes the {{ .FileName | toCamelCase }}Trigger, required for event and webhook triggers in a lifecycle context.
-func (t *{{ .FileName | toPascal }}Trigger) Start(ctx integration.LifecycleContext) error {
+func (t *{{ .FileName | toPascal }}Trigger) Start(ctx sdk.LifecycleContext) error {
 	// Required for event and webhook triggers
 	return nil
 }
 
 // Stop shuts down the {{ .FileName | toCamelCase }}Trigger, cleaning up resources and performing necessary teardown operations.
-func (t *{{ .FileName | toPascal }}Trigger) Stop(ctx integration.LifecycleContext) error {
+func (t *{{ .FileName | toPascal }}Trigger) Stop(ctx sdk.LifecycleContext) error {
 	return nil
 }
 
 // Execute performs the main action logic of {{ .FileName | toCamelCase }}Trigger by processing the input context and returning a JSON response.
 // It converts the base context input into a strongly-typed structure, executes the desired logic, and generates output.
 // Returns a JSON output map with the resulting data or an error if operation fails. required for Pooling triggers
-func (t *{{ .FileName | toPascal }}Trigger) Execute(ctx integration.ExecuteContext) (sdkcore.JSON, error) {
-	input, err := integration.InputToTypeSafely[{{ .FileName | toCamelCase }}TriggerProps](ctx.BaseContext)
+func (t *{{ .FileName | toPascal }}Trigger) Execute(ctx sdk.ExecuteContext) (sdkcore.JSON, error) {
+	input, err := sdk.InputToTypeSafely[{{ .FileName | toCamelCase }}TriggerProps](ctx.BaseContext)
 	if err != nil {
 		return nil, err
 	}
@@ -434,7 +433,7 @@ func (t *{{ .FileName | toPascal }}Trigger) Criteria(ctx context.Context) sdkcor
 	return sdkcore.TriggerCriteria{}
 }
 
-func (t *{{ .FileName | toPascal }}Trigger) Auth() *integration.Auth {
+func (t *{{ .FileName | toPascal }}Trigger) Auth() *sdk.Auth {
 	return nil
 }
 
@@ -444,7 +443,7 @@ func (t *{{ .FileName | toPascal }}Trigger) SampleData() sdkcore.JSON {
 	}
 }
 
-func New{{ .FileName | toPascal }}Trigger() integration.Trigger {
+func New{{ .FileName | toPascal }}Trigger() sdk.Trigger {
 	return &{{ .FileName | toPascal }}Trigger{}
 }
 `
@@ -464,56 +463,66 @@ const getDocTemplate = `
 func updateReadmeFile(readmePath, kind string, meta *ActionTriggerMetadata) error {
 	var readmeContent string
 
-	// Check if README exists
+	// Check if README.md exists
 	if _, err := os.Stat(readmePath); err == nil {
-		// Read the existing content of the README
+		// Read the existing content of the README file
 		content, err := os.ReadFile(readmePath)
 		if err != nil {
-			return fmt.Errorf("failed to read README file: %w", err)
+			return fmt.Errorf("failed to read README.md file: %w", err)
 		}
 		readmeContent = string(content)
 	} else {
-		// Initialize a basic README if not present
+		// Initialize a basic README if it doesn't exist
 		readmeContent = fmt.Sprintf("# %s Integration\n\n## Description\n%s\n\n",
 			meta.Name, "This integration provides various actions and triggers.")
 	}
 
-	// Determine the kind section (actions or triggers)
+	// Define the section header for the type (actions or triggers)
 	sectionHeader := fmt.Sprintf("## %s", strings.Title(kind+"s"))
-	sectionStart := strings.Index(readmeContent, sectionHeader)
 
-	// Find or initialize the section
+	// Locate the section in the README file
+	sectionStart := strings.Index(readmeContent, sectionHeader)
 	var sectionContent string
+
 	if sectionStart == -1 {
-		sectionContent = sectionHeader + "\n\n"
+		// If section doesn't exist, initialize it with a table structure
+		sectionContent = fmt.Sprintf("%s\n\n| Name | Description | Link |\n|------|-------------|------|\n", sectionHeader)
+		readmeContent += sectionContent
+		sectionStart = len(readmeContent) - len(sectionContent)
 	} else {
-		// Extract existing section
+		// Extract the existing section from the content
 		sectionEnd := strings.Index(readmeContent[sectionStart:], "\n## ")
 		if sectionEnd == -1 {
+			// If this section is the last one, take everything after the header
 			sectionContent = readmeContent[sectionStart:]
-			readmeContent = readmeContent[:sectionStart] // Trim until section
+			readmeContent = readmeContent[:sectionStart]
 		} else {
-			sectionContent = readmeContent[sectionStart : sectionStart+sectionEnd]
-			readmeContent = readmeContent[:sectionStart] + readmeContent[sectionStart+sectionEnd:]
+			// Extract the relevant section while keeping other content intact
+			sectionEnd += sectionStart
+			sectionContent = readmeContent[sectionStart:sectionEnd]
+			readmeContent = readmeContent[:sectionStart] + readmeContent[sectionEnd:]
 		}
 	}
 
-	// Prepare the new item to append to the section
-	link := fmt.Sprintf("[%s](%s/%s.md)", meta.Name, kind+"s", meta.FileName)
-	description := meta.Description
-	newItem := fmt.Sprintf("- **%s**: %s ([Documentation](%s))", meta.Name, description, link)
+	// Create the new row to insert
+	link := fmt.Sprintf("[docs](%s/%s.md)", kind+"s", meta.FileName)
+	newRow := fmt.Sprintf("| %s | %s | %s |", meta.Name, meta.Description, link)
 
-	// Append only if not already listed
+	// Ensure the row isn't a duplicate
 	if !strings.Contains(sectionContent, link) {
-		sectionContent += newItem + "\n"
+		if !strings.HasSuffix(sectionContent, "\n") {
+			// Ensure there is no extra newline before appending the new row
+			sectionContent += "\n"
+		}
+		sectionContent += newRow
 	}
 
-	// Reassemble README content
-	readmeContent += sectionContent + "\n"
+	// Rebuild the README content
+	readmeContent += sectionContent
 
-	// Write updates back to the README file
+	// Write the updated README content back to the file
 	if err := os.WriteFile(readmePath, []byte(readmeContent), 0644); err != nil {
-		return fmt.Errorf("failed to update README file: %w", err)
+		return fmt.Errorf("failed to write updated README.md file: %w", err)
 	}
 
 	return nil

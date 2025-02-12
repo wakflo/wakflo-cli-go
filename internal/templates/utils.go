@@ -1,20 +1,22 @@
 package templates
 
 import (
-	"github.com/samber/lo"
 	"os"
 	"strings"
 	"text/template"
+
+	"github.com/samber/lo"
 )
 
 var funcMap = template.FuncMap{
-	"toLower":     strings.ToLower,
-	"toUpper":     strings.ToUpper,
-	"toTitle":     strings.ToTitle,
-	"toSnakeCase": lo.SnakeCase,
-	"toKebabCase": lo.KebabCase,
-	"toCamelCase": lo.CamelCase,
-	"toPascal":    lo.PascalCase,
+	"toLower":       strings.ToLower,
+	"toUpper":       strings.ToUpper,
+	"toTitle":       strings.ToTitle,
+	"toSnakeCase":   lo.SnakeCase,
+	"toKebabCase":   lo.KebabCase,
+	"toCamelCase":   lo.CamelCase,
+	"toPascal":      lo.PascalCase,
+	"toPackageName": ToPackageName,
 }
 
 func WriteTemplateToFile(filePath, tmpl string, meta any) error {
@@ -40,4 +42,8 @@ func IsIntegrationProject() bool {
 	// Replace "integration.config" with the appropriate file or folder to check
 	_, err := os.Stat("integration.toml")
 	return err == nil
+}
+
+func ToPackageName(value string) string {
+	return strings.ToLower(strings.ReplaceAll(value, " ", ""))
 }

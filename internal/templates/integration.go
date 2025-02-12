@@ -2,20 +2,21 @@ package templates
 
 import (
 	"fmt"
-	"github.com/wakflo/go-sdk/integration"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/wakflo/go-sdk/sdk"
 )
 
 type CreateIntegrationProps struct {
-	integration.IntegrationSchemaModel
+	sdk.IntegrationSchemaModel
 	Docs string `json:"name" toml:"name" yaml:"name"`
 }
 
 func CreateIntegrationFolder(meta *CreateIntegrationProps) error {
 	// Generate folder structure
-	folderName := strings.ToLower(meta.Name)
+	folderName := strings.ReplaceAll(strings.ToLower(meta.Name), " ", "")
 	if err := os.Mkdir(folderName, os.ModePerm); err != nil {
 		return fmt.Errorf("failed to create folder '%s': %w", folderName, err)
 	}
@@ -40,32 +41,32 @@ func CreateIntegrationFolder(meta *CreateIntegrationProps) error {
 
 // Templates for the integration files
 
-const libGoTemplate = `package {{ .Name | toLower }}
+const libGoTemplate = `package {{ .Name | toPackageName }}
 
 import (
-	"github.com/wakflo/go-sdk/integration"
+	"github.com/wakflo/go-sdk/sdk"
 )
 
-var Integration = integration.Register(New{{ .Name }}())
+var Integration = sdk.Register(New{{ .Name | toPascal }}())
 
-type {{ .Name }} struct{}
+type {{ .Name | toPascal }} struct{}
 
-func (n *{{ .Name }}) Auth() *integration.Auth {
-	return &integration.Auth{
+func (n *{{ .Name | toPascal }}) Auth() *sdk.Auth {
+	return &sdk.Auth{
 		Required: false,
 	}
 }
 
-func (n *{{ .Name }}) Triggers() []integration.Trigger {
-	return []integration.Trigger{}
+func (n *{{ .Name | toPascal }}) Triggers() []sdk.Trigger {
+	return []sdk.Trigger{}
 }
 
-func (n *{{ .Name }}) Actions() []integration.Action {
-	return []integration.Action{}
+func (n *{{ .Name | toPascal }}) Actions() []sdk.Action {
+	return []sdk.Action{}
 }
 
-func New{{ .Name }}() integration.Integration {
-	return &{{ .Name }}{}
+func New{{ .Name | toPascal }}() sdk.Integration {
+	return &{{ .Name | toPascal }}{}
 }
 `
 
@@ -90,7 +91,7 @@ const readmeTemplate = `# {{ .Name }} Integration
 
 const integrationTomlTemplate = `[integration]
 name = "{{ .Name }}"
-description = "{{ .Description }}"
+description = """{{ .Description }}"""
 version = "{{ .Version }}"
 icon = "{{ .Icon }}"
 categories = [{{ range $index, $element := .Categories }}{{ if $index }}, {{ end }}"{{ $element }}"{{ end }}]

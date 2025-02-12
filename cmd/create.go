@@ -3,12 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/AlecAivazis/survey/v2"
 	"strings"
+
+	"github.com/AlecAivazis/survey/v2"
 
 	"github.com/spf13/cobra"
 	"github.com/wakflo/go-sdk/client"
-	"github.com/wakflo/go-sdk/integration"
+	"github.com/wakflo/go-sdk/sdk"
 	"github.com/wakflo/go-sdk/validator"
 	"github.com/wakflo/wakflo-cli/internal/templates"
 )
@@ -40,7 +41,7 @@ func newCreateIntegrationCmd(floClient *client.Client) *cobra.Command {
 				Message: "Enter Name of the integration (required):",
 			}, &name, survey.WithValidator(survey.Required))
 			if err != nil {
-				fmt.Println("Operation canceled")
+				fmt.Printf("Name operation canceled %v+ \n", err)
 				return
 			}
 
@@ -61,7 +62,7 @@ func newCreateIntegrationCmd(floClient *client.Client) *cobra.Command {
 				Default: strings.Trim(generateResponse.Data, `"'`),
 			}, &description)
 			if err != nil {
-				fmt.Println("Operation canceled")
+				fmt.Printf("Description operation canceled %v+ \n", err)
 				return
 			}
 
@@ -75,13 +76,23 @@ func newCreateIntegrationCmd(floClient *client.Client) *cobra.Command {
 			}
 
 			var icon string
-			err = survey.AskOne(&survey.Select{
-				Message: "Select an Icon for the integration:",
-				Options: iconResponse.Icons,
-			}, &icon)
-			if err != nil {
-				fmt.Println("Operation canceled")
-				return
+			if len(iconResponse.Icons) == 0 {
+				err = survey.AskOne(&survey.Input{
+					Message: "Enter an Icon for the integration:",
+				}, &icon)
+				if err != nil {
+					fmt.Printf("Description operation canceled %v+ \n", err)
+					return
+				}
+			} else {
+				err = survey.AskOne(&survey.Select{
+					Message: "Select an Icon for the integration:",
+					Options: iconResponse.Icons,
+				}, &icon)
+				if err != nil {
+					fmt.Printf("Icon operation canceled %v+ \n", err)
+					return
+				}
 			}
 
 			// Step 4: List categories and allow user to pick multiple
@@ -95,9 +106,10 @@ func newCreateIntegrationCmd(floClient *client.Client) *cobra.Command {
 			err = survey.AskOne(&survey.MultiSelect{
 				Message: "Select Categories for the integration:",
 				Options: catResponse.Keys,
+				Default: []string{"app"},
 			}, &categories)
 			if err != nil {
-				fmt.Println("Operation canceled")
+				fmt.Printf("Categories operation canceled %v+ \n", err)
 				return
 			}
 
@@ -105,9 +117,10 @@ func newCreateIntegrationCmd(floClient *client.Client) *cobra.Command {
 			var authorsInput string
 			err = survey.AskOne(&survey.Input{
 				Message: "Enter Authors of the integration (comma-separated):",
+				Default: "Wakflo <integrations@wakflo.com>",
 			}, &authorsInput)
 			if err != nil {
-				fmt.Println("Operation canceled")
+				fmt.Printf("Authors operation canceled %v+ \n", err)
 				return
 			}
 			authors := strings.Split(authorsInput, ",")
@@ -124,7 +137,7 @@ func newCreateIntegrationCmd(floClient *client.Client) *cobra.Command {
 
 			// Step 7: Create integration metadata
 			meta := &templates.CreateIntegrationProps{
-				IntegrationSchemaModel: integration.IntegrationSchemaModel{
+				IntegrationSchemaModel: sdk.IntegrationSchemaModel{
 					Name:        name,
 					Description: description,
 					Categories:  categories,
